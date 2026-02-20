@@ -45,6 +45,15 @@ export default function Home() {
             className="text-primary hover:underline transition-colors"
           >
             Zaclark.com
+          </a>{' '}
+          •{' '}
+          <a
+            href="https://ko-fi.com/spacedubby07"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline transition-colors"
+          >
+            Support Me on Ko-fi
           </a>
         </p>
       </footer>

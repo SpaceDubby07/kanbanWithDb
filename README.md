@@ -10,6 +10,10 @@ Public by design: anyone who knows the username can view and edit the boards.
 
 Built with Next.js App Router, Turso (SQLite), Drizzle ORM, shadcn/ui, and dnd-kit (coming soon for drag & drop).
 
+## Kofi Support
+
+If you like what I do, you can support me on [Kofi](https://ko-fi.com/spacedubby07).
+
 ## Screenshots
 
 ### Home / Username Entry
