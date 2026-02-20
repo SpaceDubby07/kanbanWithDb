@@ -1,7 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Trash2, CheckCircle } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  CheckCircle,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
@@ -25,7 +31,7 @@ interface Task {
   id: string;
   content: string;
   order: number;
-  listId: string; // we'll track current listId locally
+  listId: string;
 }
 
 export function KanbanView({
@@ -40,6 +46,9 @@ export function KanbanView({
   >({});
   const [localTasks, setLocalTasks] = useState<
     Record<string, Task[]>
+  >({});
+  const [collapsedLists, setCollapsedLists] = useState<
+    Record<string, boolean>
   >({});
 
   // Sync server data → local tasks
@@ -63,7 +72,6 @@ export function KanbanView({
         }
       });
 
-    // Sort tasks in each list
     Object.keys(tasksByList).forEach((listId) => {
       tasksByList[listId].sort((a, b) => a.order - b.order);
     });
@@ -117,6 +125,13 @@ export function KanbanView({
   const isCompletedList = (title: string) =>
     title.toLowerCase() === 'completed';
 
+  const toggleListCollapse = (listId: string) => {
+    setCollapsedLists((prev) => ({
+      ...prev,
+      [listId]: !prev[listId],
+    }));
+  };
+
   const handleAddTask = async (listId: string) => {
     const content = newTaskContent[listId]?.trim();
     if (!content) return;
@@ -148,6 +163,7 @@ export function KanbanView({
       }));
 
       setNewTaskContent((prev) => ({ ...prev, [listId]: '' }));
+      toast.success('Task added');
     } catch {
       toast.error('Could not add task');
     } finally {
@@ -169,6 +185,8 @@ export function KanbanView({
         ...prev,
         [listId]: (prev[listId] || []).filter((t) => t.id !== taskId),
       }));
+
+      toast.success('Task deleted');
     } catch {
       toast.error('Could not delete task');
     }
@@ -178,7 +196,6 @@ export function KanbanView({
     task: Task,
     currentListId: string,
   ) => {
-    // Find the Completed list ID
     const completedList = board.lists.find(
       (l) => l.title.toLowerCase() === 'completed',
     );
@@ -196,7 +213,6 @@ export function KanbanView({
 
       if (!res.ok) throw new Error();
 
-      // Optimistically move
       setLocalTasks((prev) => {
         const currentTasks = prev[currentListId] || [];
         const remaining = currentTasks.filter(
@@ -213,6 +229,8 @@ export function KanbanView({
           ],
         };
       });
+
+      toast.success('Task completed');
     } catch {
       toast.error('Could not mark as complete');
     }
@@ -238,94 +256,142 @@ export function KanbanView({
         {board.name}
       </h1>
 
-      <div className="flex gap-6 overflow-x-auto pb-8 h-[calc(100%-4rem)]">
+      <div className="flex gap-4 overflow-x-auto pb-8 h-[calc(100%-4rem)]">
         {board.lists.map((list) => {
+          const isCollapsed = collapsedLists[list.id] ?? false;
           const tasks = localTasks[list.id] || [];
-
           const isCompleted = isCompletedList(list.title);
 
           return (
             <div
               key={list.id}
               className={cn(
-                'flex h-full min-w-[340px] flex-col rounded-xl border shadow-sm',
-                isCompletedList(list.title)
-                  ? 'bg-emerald-600/20 border-emerald-800 text-white'
+                'flex flex-col rounded-xl border shadow-sm transition-all duration-300 ease-in-out overflow-hidden',
+                isCollapsed ? 'w-14 min-w-14' : 'min-w-[340px]',
+                isCompleted
+                  ? 'bg-emerald-950 border-emerald-800 text-emerald-100'
                   : 'bg-card border-border',
               )}
             >
-              <div className="flex items-center justify-between border-b px-4 py-3 font-semibold">
-                {list.title}
-                <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs">
-                  {tasks.length}
-                </span>
-              </div>
-
-              <div className="flex-1 space-y-3 overflow-y-auto p-3">
-                {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="group relative rounded-lg border bg-background p-4 shadow-sm flex items-start gap-3"
-                  >
-                    {!isCompleted && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50 shrink-0"
-                        onClick={() =>
-                          handleCompleteTask(task, list.id)
+              {/* Collapsible Header */}
+              <div
+                onClick={() => toggleListCollapse(list.id)}
+                className={cn(
+                  'cursor-pointer select-none transition-all duration-300',
+                  isCollapsed
+                    ? 'flex flex-col items-center justify-center py-4 gap-3 bg-muted/50 hover:bg-muted'
+                    : 'flex items-center justify-between px-4 py-3 border-b hover:bg-muted/30',
+                )}
+              >
+                {/* Title */}
+                <span
+                  className={cn(
+                    'font-semibold text-sm transition-all duration-300',
+                    isCollapsed ? 'text-center' : 'truncate',
+                  )}
+                  style={
+                    isCollapsed
+                      ? {
+                          writingMode: 'vertical-rl',
+                          textOrientation: 'upright',
+                          fontSize: '9px',
                         }
-                        title="Mark as complete"
-                      >
-                        <CheckCircle className="h-5 w-5" />
-                      </Button>
-                    )}
+                      : undefined
+                  }
+                >
+                  {list.title}
+                </span>
 
-                    <p className="text-sm whitespace-pre-wrap flex-1">
-                      {task.content}
-                    </p>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 shrink-0"
-                      onClick={() =>
-                        handleDeleteTask(task.id, list.id)
-                      }
-                      title="Delete task"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                {/* Count + Icon */}
+                {isCollapsed ? (
+                  <span className="text-[10px] font-medium bg-background/70 px-2 py-1 rounded-full">
+                    {tasks.length}
+                  </span>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                      {tasks.length}
+                    </span>
+                    <ChevronUp className="h-4 w-4 transition-transform duration-300" />
                   </div>
-                ))}
+                )}
               </div>
 
-              {!isCompleted && (
-                <div className="border-t p-3">
-                  <div className="space-y-2">
-                    <Textarea
-                      placeholder="Enter task content..."
-                      value={newTaskContent[list.id] || ''}
-                      onChange={(e) =>
-                        handleTaskInputChange(list.id, e.target.value)
-                      }
-                      onKeyDown={(e) => handleTaskKeyDown(list.id, e)}
-                      disabled={creatingTask[list.id]}
-                    />
-                    <Button
-                      onClick={() => handleAddTask(list.id)}
-                      disabled={
-                        creatingTask[list.id] ||
-                        !newTaskContent[list.id]?.trim()
-                      }
-                      className="w-full"
-                    >
-                      {creatingTask[list.id]
-                        ? 'Adding...'
-                        : 'Add Task'}
-                    </Button>
+              {/* Content */}
+              {!isCollapsed && (
+                <>
+                  <div className="flex-1 space-y-3 overflow-y-auto p-3 transition-opacity duration-200">
+                    {tasks.map((task) => (
+                      <div
+                        key={task.id}
+                        className="group relative rounded-lg border bg-background p-4 shadow-sm flex items-start gap-3 hover:shadow-md transition-shadow"
+                      >
+                        {!isCompleted && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50 shrink-0"
+                            onClick={() =>
+                              handleCompleteTask(task, list.id)
+                            }
+                            title="Mark as complete"
+                          >
+                            <CheckCircle className="h-5 w-5" />
+                          </Button>
+                        )}
+
+                        <p className="text-sm whitespace-pre-wrap flex-1">
+                          {task.content}
+                        </p>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
+                          onClick={() =>
+                            handleDeleteTask(task.id, list.id)
+                          }
+                          title="Delete task"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                </div>
+
+                  {!isCompleted && (
+                    <div className="border-t p-3">
+                      <div className="space-y-2">
+                        <Textarea
+                          placeholder="Enter task content..."
+                          value={newTaskContent[list.id] || ''}
+                          onChange={(e) =>
+                            handleTaskInputChange(
+                              list.id,
+                              e.target.value,
+                            )
+                          }
+                          onKeyDown={(e) =>
+                            handleTaskKeyDown(list.id, e)
+                          }
+                          disabled={creatingTask[list.id]}
+                        />
+                        <Button
+                          onClick={() => handleAddTask(list.id)}
+                          disabled={
+                            creatingTask[list.id] ||
+                            !newTaskContent[list.id]?.trim()
+                          }
+                          className="w-full"
+                        >
+                          {creatingTask[list.id]
+                            ? 'Adding...'
+                            : 'Add Task'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
