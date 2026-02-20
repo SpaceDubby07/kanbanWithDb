@@ -53,8 +53,6 @@ export function UsernameForm() {
       );
 
       router.push(`/board/${data.username}`);
-      // Optional: clear input after success (or not — personal preference)
-      // setUsername("");
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error('Network error — try again');
@@ -71,7 +69,7 @@ export function UsernameForm() {
         </Label>
         <Input
           id="username"
-          placeholder="zach, project-x, my-kanban-2025"
+          placeholder="imagination-is-the-limit, project-x, kanban-2026"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoFocus
@@ -79,9 +77,6 @@ export function UsernameForm() {
           disabled={isLoading}
           className="h-12 text-base placeholder:text-muted-foreground/70"
         />
-        <p className="text-xs text-muted-foreground">
-          3–20 chars • lowercase, numbers, -, _
-        </p>
       </div>
 
       <Button
