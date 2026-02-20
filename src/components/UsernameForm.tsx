@@ -55,6 +55,7 @@ export function UsernameForm() {
       router.push(`/board/${data.username}`);
       // Optional: clear input after success (or not — personal preference)
       // setUsername("");
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
       toast.error('Network error — try again');
     } finally {

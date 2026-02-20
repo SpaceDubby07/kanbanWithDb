@@ -188,7 +188,6 @@ export function KanbanView({
       }));
 
       setNewTaskContent((prev) => ({ ...prev, [listId]: '' }));
-      toast.success('Task added');
     } catch {
       toast.error('Could not add task');
     } finally {
@@ -211,7 +210,6 @@ export function KanbanView({
         [listId]: (prev[listId] || []).filter((t) => t.id !== taskId),
       }));
 
-      toast.success('Task deleted');
     } catch {
       toast.error('Could not delete task');
     }
@@ -255,7 +253,6 @@ export function KanbanView({
         };
       });
 
-      toast.success('Task completed');
     } catch {
       toast.error('Could not mark as complete');
     }
@@ -306,7 +303,6 @@ export function KanbanView({
 
       setNewListTitle('');
       setShowNewListForm(false);
-      toast.success('List added');
     } catch {
       toast.error('Could not add list');
     } finally {
@@ -336,7 +332,6 @@ export function KanbanView({
         return copy;
       });
 
-      toast.success('List deleted');
     } catch {
       toast.error('Could not delete list');
     }
