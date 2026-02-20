@@ -3,7 +3,7 @@ import { UsernameForm } from '@/components/UsernameForm';
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-slate-50 via-white to-slate-100 px-4">
+    <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-md space-y-10 py-12">
         {/* Header */}
         <div className="text-center space-y-4">
@@ -19,7 +19,7 @@ export default function Home() {
         </div>
 
         {/* Form card */}
-        <div className="bg-white shadow-xl rounded-2xl p-8 border border-slate-200/70">
+        <div className=" shadow-xl rounded-2xl p-8 border ">
           <UsernameForm />
         </div>
 

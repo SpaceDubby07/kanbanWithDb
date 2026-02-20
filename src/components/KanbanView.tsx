@@ -1,15 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import {
-  Plus,
-  Trash2,
-  CheckCircle,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { Plus, Trash2, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +29,12 @@ interface Task {
   listId: string;
 }
 
+interface List {
+  id: string;
+  title: string;
+  order: number;
+}
+
 export function KanbanView({
   activeBoardId,
   joinedData,
@@ -51,67 +52,91 @@ export function KanbanView({
     Record<string, boolean>
   >({});
 
-  // Sync server data → local tasks
-  useEffect(() => {
-    if (!activeBoardId) return;
+  // New list form state
+  const [showNewListForm, setShowNewListForm] = useState(false);
+  const [newListTitle, setNewListTitle] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
 
-    const tasksByList: Record<string, Task[]> = {};
+  // Local lists state — starts from server, updated optimistically
+  const [localLists, setLocalLists] = useState<List[]>([]);
+
+  // Sync from server props whenever joinedData or activeBoardId changes
+  useEffect(() => {
+    if (!activeBoardId) {
+      setLocalLists([]);
+      setLocalTasks({});
+      return;
+    }
+
+    // Build lists from joinedData
+    const listsMap = new Map<string, List>();
 
     joinedData
       .filter((row) => row.boardId === activeBoardId && row.listId)
       .forEach((row) => {
         const listId = row.listId!;
-        if (!tasksByList[listId]) tasksByList[listId] = [];
-        if (row.taskId) {
-          tasksByList[listId].push({
-            id: row.taskId,
-            content: row.taskContent || '',
-            order: row.taskOrder ?? 0,
-            listId,
+        if (!listsMap.has(listId)) {
+          listsMap.set(listId, {
+            id: listId,
+            title: row.listTitle || 'Untitled',
+            order: row.listOrder ?? 0,
           });
         }
       });
 
-    Object.keys(tasksByList).forEach((listId) => {
-      tasksByList[listId].sort((a, b) => a.order - b.order);
-    });
+    const newLists = Array.from(listsMap.values()).sort(
+      (a, b) => a.order - b.order,
+    );
+
+    // Ensure "Completed" stays last
+    const completedIndex = newLists.findIndex(
+      (l) => l.title.toLowerCase() === 'completed',
+    );
+    if (
+      completedIndex !== -1 &&
+      completedIndex !== newLists.length - 1
+    ) {
+      const [completed] = newLists.splice(completedIndex, 1);
+      newLists.push(completed);
+    }
+
+    setLocalLists(newLists);
+
+    // Also sync tasks
+    const tasksByList: Record<string, Task[]> = {};
+    joinedData
+      .filter(
+        (row) =>
+          row.boardId === activeBoardId && row.listId && row.taskId,
+      )
+      .forEach((row) => {
+        const listId = row.listId!;
+        if (!tasksByList[listId]) tasksByList[listId] = [];
+        tasksByList[listId].push({
+          id: row.taskId!,
+          content: row.taskContent || '',
+          order: row.taskOrder ?? 0,
+          listId,
+        });
+      });
+
+    Object.values(tasksByList).forEach((tasks) =>
+      tasks.sort((a, b) => a.order - b.order),
+    );
 
     setLocalTasks(tasksByList);
   }, [activeBoardId, joinedData]);
 
   const board = useMemo(() => {
-    if (!activeBoardId) return null;
-
-    const rows = joinedData.filter(
-      (row) => row.boardId === activeBoardId,
-    );
-    if (rows.length === 0) return null;
-
-    const listsMap = new Map<
-      string,
-      { id: string; title: string; order: number }
-    >();
-
-    rows.forEach((row) => {
-      if (!row.listId) return;
-      if (!listsMap.has(row.listId)) {
-        listsMap.set(row.listId, {
-          id: row.listId,
-          title: row.listTitle || 'Untitled',
-          order: row.listOrder ?? 0,
-        });
-      }
-    });
-
-    const sortedLists = Array.from(listsMap.values()).sort(
-      (a, b) => a.order - b.order,
-    );
+    if (!activeBoardId || localLists.length === 0) return null;
 
     return {
-      name: rows[0].boardName || 'Board',
-      lists: sortedLists,
+      name:
+        joinedData.find((r) => r.boardId === activeBoardId)
+          ?.boardName || 'Board',
+      lists: localLists,
     };
-  }, [activeBoardId, joinedData]);
+  }, [activeBoardId, localLists, joinedData]);
 
   if (!board) {
     return (
@@ -236,6 +261,98 @@ export function KanbanView({
     }
   };
 
+  const handleAddList = async () => {
+    const title = newListTitle.trim();
+    if (!title) return;
+
+    setCreatingList(true);
+
+    try {
+      const res = await fetch('/api/lists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ boardId: activeBoardId, title }),
+      });
+
+      if (!res.ok) throw new Error();
+
+      const newList = await res.json();
+
+      // Optimistically add the new list (insert before Completed)
+      setLocalLists((prev) => {
+        const completedIndex = prev.findIndex(
+          (l) => l.title.toLowerCase() === 'completed',
+        );
+
+        const newListObj = {
+          id: newList.id,
+          title: newList.title,
+          order: newList.order,
+        };
+
+        if (completedIndex === -1) {
+          return [...prev, newListObj];
+        }
+
+        const before = prev.slice(0, completedIndex);
+        const after = prev.slice(completedIndex);
+        return [...before, newListObj, ...after];
+      });
+
+      setLocalTasks((prev) => ({
+        ...prev,
+        [newList.id]: [],
+      }));
+
+      setNewListTitle('');
+      setShowNewListForm(false);
+      toast.success('List added');
+    } catch {
+      toast.error('Could not add list');
+    } finally {
+      setCreatingList(false);
+    }
+  };
+
+  const handleDeleteList = async (
+    listId: string,
+    listTitle: string,
+  ) => {
+    if (!confirm(`Delete list "${listTitle}" and all its tasks?`))
+      return;
+
+    try {
+      const res = await fetch(`/api/lists/${listId}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) throw new Error();
+
+      // Optimistically remove list and its tasks
+      setLocalLists((prev) => prev.filter((l) => l.id !== listId));
+      setLocalTasks((prev) => {
+        const copy = { ...prev };
+        delete copy[listId];
+        return copy;
+      });
+
+      toast.success('List deleted');
+    } catch {
+      toast.error('Could not delete list');
+    }
+  };
+
+  const handleListKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddList();
+    }
+    if (e.key === 'Escape') {
+      setShowNewListForm(false);
+      setNewListTitle('');
+    }
+  };
+
   const handleTaskInputChange = (listId: string, value: string) => {
     setNewTaskContent((prev) => ({ ...prev, [listId]: value }));
   };
@@ -248,6 +365,16 @@ export function KanbanView({
       e.preventDefault();
       handleAddTask(listId);
     }
+  };
+
+  const isProtectedList = (title: string) => {
+    const lower = title.toLowerCase();
+    return (
+      lower === 'today' ||
+      lower === 'this week' ||
+      lower === 'future' ||
+      lower === 'completed'
+    );
   };
 
   return (
@@ -267,52 +394,66 @@ export function KanbanView({
               key={list.id}
               className={cn(
                 'flex flex-col rounded-xl border shadow-sm transition-all duration-300 ease-in-out overflow-hidden',
-                isCollapsed ? 'w-14 min-w-14' : 'min-w-[340px]',
+                isCollapsed
+                  ? 'w-14 min-w-14 items-center'
+                  : 'min-w-85',
                 isCompleted
                   ? 'bg-emerald-950 border-emerald-800 text-emerald-100'
                   : 'bg-card border-border',
               )}
             >
-              {/* Collapsible Header */}
+              {/* Collapsible Header / Pill */}
               <div
                 onClick={() => toggleListCollapse(list.id)}
                 className={cn(
-                  'cursor-pointer select-none transition-all duration-300',
+                  'cursor-pointer select-none transition-all duration-300 w-full flex items-center',
                   isCollapsed
-                    ? 'flex flex-col items-center justify-center py-4 gap-3 bg-muted/50 hover:bg-muted'
-                    : 'flex items-center justify-between px-4 py-3 border-b hover:bg-muted/30',
+                    ? 'flex-col justify-center py-6 gap-2 bg-muted/50 hover:bg-muted rounded-xl'
+                    : 'justify-between px-4 py-3 border-b hover:bg-muted/30 group relative',
                 )}
               >
-                {/* Title */}
-                <span
-                  className={cn(
-                    'font-semibold text-sm transition-all duration-300',
-                    isCollapsed ? 'text-center' : 'truncate',
-                  )}
-                  style={
-                    isCollapsed
-                      ? {
-                          writingMode: 'vertical-rl',
-                          textOrientation: 'upright',
-                          fontSize: '9px',
-                        }
-                      : undefined
-                  }
-                >
-                  {list.title}
-                </span>
-
-                {/* Count + Icon */}
                 {isCollapsed ? (
-                  <span className="text-[10px] font-medium bg-background/70 px-2 py-1 rounded-full">
-                    {tasks.length}
+                  <span
+                    className={cn(
+                      'font-semibold text-sm transition-all duration-300',
+                      isCollapsed ? 'text-center' : 'truncate',
+                    )}
+                    style={
+                      isCollapsed
+                        ? {
+                            writingMode: 'vertical-rl',
+                            textOrientation: 'upright',
+                            fontSize: '7px',
+                          }
+                        : undefined
+                    }
+                  >
+                    {list.title}
                   </span>
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                      {tasks.length}
+                  <div className="flex w-full items-center justify-between">
+                    <span className="font-semibold">
+                      {list.title}
                     </span>
-                    <ChevronUp className="h-4 w-4 transition-transform duration-300" />
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
+                        {tasks.length}
+                      </span>
+                      {!isProtectedList(list.title) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteList(list.id, list.title);
+                          }}
+                          title="Delete list"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -397,10 +538,47 @@ export function KanbanView({
           );
         })}
 
-        <button className="flex h-[140px] w-[340px] shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/50 hover:border-primary/50 hover:text-primary transition-colors">
-          <Plus className="mr-2 h-5 w-5" />
-          Add another list
-        </button>
+        {/* Add another list */}
+        <div className="shrink-0 flex flex-col gap-2">
+          {showNewListForm ? (
+            <div className="w-85 rounded-xl border bg-card p-4 shadow-sm space-y-3">
+              <Input
+                placeholder="List name (e.g. In Review)"
+                value={newListTitle}
+                onChange={(e) => setNewListTitle(e.target.value)}
+                onKeyDown={handleListKeyDown}
+                autoFocus
+                disabled={creatingList}
+              />
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleAddList}
+                  disabled={creatingList || !newListTitle.trim()}
+                  className="flex-1"
+                >
+                  {creatingList ? 'Adding...' : 'Add List'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setShowNewListForm(false);
+                    setNewListTitle('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowNewListForm(true)}
+              className="flex h-35 w-85 shrink-0 items-center justify-center rounded-xl border-2 border-dashed border-muted-foreground/50 hover:border-primary/50 hover:text-primary transition-colors"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Add another list
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
