@@ -813,7 +813,7 @@ export function KanbanView({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-50 shrink-0"
+                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50 shrink-0" // h-8 w-8
                             onClick={() =>
                               handleCompleteTask(task, list.id)
                             }
@@ -829,12 +829,11 @@ export function KanbanView({
                         <div className="flex flex-col gap-1 shrink-0">
                           {!isCompleted && (
                             <>
-                              {/* Move button */}
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className={cn(
-                                  'h-6 w-6 shrink-0 transition-colors',
+                                  'h-8 w-8 shrink-0 transition-colors', // h-8 w-8 instead of h-6 w-6
                                   isSelected
                                     ? 'text-blue-500 bg-blue-50'
                                     : 'text-muted-foreground hover:text-blue-500',
@@ -855,13 +854,12 @@ export function KanbanView({
                                 )}
                               </Button>
 
-                              {/* Reorder arrows — only show when task is selected */}
                               {isSelected && (
                                 <>
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-30"
                                     onClick={() =>
                                       handleMoveTaskOrder(
                                         task.id,
@@ -876,7 +874,7 @@ export function KanbanView({
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-foreground disabled:opacity-30"
+                                    className="h-8 w-8 text-muted-foreground hover:text-foreground disabled:opacity-30"
                                     onClick={() =>
                                       handleMoveTaskOrder(
                                         task.id,
@@ -898,7 +896,7 @@ export function KanbanView({
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0" // h-8 w-8
                             onClick={() =>
                               handleDeleteTask(task.id, list.id)
                             }
