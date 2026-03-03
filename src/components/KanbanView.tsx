@@ -427,6 +427,8 @@ export function KanbanView({
       : findListByTaskId(overId);
 
     if (!activeListId || !overListId) return;
+
+    // Block dragging INTO completed
     if (
       isCompletedList(
         localLists.find((l) => l.id === overListId)?.title ?? '',
@@ -434,7 +436,14 @@ export function KanbanView({
     )
       return;
 
-    // Cross-list move only — same list reordering handled in dragEnd
+    // Block dragging OUT OF completed
+    if (
+      isCompletedList(
+        localLists.find((l) => l.id === activeListId)?.title ?? '',
+      )
+    )
+      return;
+
     if (activeListId !== overListId) {
       setLocalTasks((prev) => {
         const activeTask = (prev[activeListId] || []).find(
