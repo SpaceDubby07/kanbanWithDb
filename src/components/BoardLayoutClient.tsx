@@ -39,12 +39,45 @@ export default function BoardLayoutClient({
   const [localJoinedData, setLocalJoinedData] =
     useState<JoinedRow[]>(initialJoinedData);
 
-  // Auto-select first board on load
+  const activeBoardName = boards.find(
+    (b) => b.id === activeBoardId,
+  )?.name;
+
+  // On load, restore last active board or fall back to first
   useEffect(() => {
-    if (activeBoardId === null && boards.length > 0) {
+    if (boards.length === 0) return;
+    const saved = localStorage.getItem(`activeBoard:${username}`);
+    if (saved && boards.find((b) => b.id === saved)) {
+      setActiveBoardId(saved);
+    } else {
       setActiveBoardId(boards[0].id);
     }
   }, [boards]);
+
+  // Persist whenever active board changes
+  useEffect(() => {
+    if (activeBoardId) {
+      localStorage.setItem(`activeBoard:${username}`, activeBoardId);
+    }
+  }, [activeBoardId, username]);
+
+  // Polling
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `/api/boards/data?username=${username}`,
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setLocalJoinedData(data);
+      } catch {
+        // silently fail
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [username]);
 
   const handleCreateBoard = async (name: string) => {
     try {
@@ -58,10 +91,8 @@ export default function BoardLayoutClient({
 
       const newBoard = await res.json();
 
-      // Add board to list
       setBoards((prev) => [...prev, newBoard]);
 
-      // Optimistically add default lists to localJoinedData
       const defaultLists = [
         { title: 'Today', order: 0 },
         { title: 'This Week', order: 1 },
@@ -73,7 +104,7 @@ export default function BoardLayoutClient({
         (list, index) => ({
           boardId: newBoard.id,
           boardName: newBoard.name,
-          listId: `optimistic-${index}-${Date.now()}`, // temp ID
+          listId: `optimistic-${index}-${Date.now()}`,
           listTitle: list.title,
           listOrder: list.order,
           taskId: null,
@@ -83,12 +114,9 @@ export default function BoardLayoutClient({
       );
 
       setLocalJoinedData((prev) => [...prev, ...optimisticRows]);
-
-      // Select it
       setActiveBoardId(newBoard.id);
-
       toast.success('Board created');
-    } catch (err) {
+    } catch {
       toast.error('Could not create board');
     }
   };
@@ -108,12 +136,9 @@ export default function BoardLayoutClient({
 
       setBoards((prev) => prev.filter((b) => b.id !== id));
       if (activeBoardId === id) setActiveBoardId(null);
-
-      // Optional: remove from localJoinedData
       setLocalJoinedData((prev) =>
         prev.filter((row) => row.boardId !== id),
       );
-
       toast.success('Board deleted');
     } catch {
       toast.error('Could not delete');
@@ -121,24 +146,29 @@ export default function BoardLayoutClient({
   };
 
   return (
-    <>
-      <Sidebar
-        username={username}
-        activeBoardId={activeBoardId}
-        setActiveBoardId={setActiveBoardId}
-        boards={boards}
-        onCreateBoard={handleCreateBoard}
-        onDeleteBoard={handleDeleteBoard}
-      />
-
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-auto p-6 bg-muted/30">
-          <KanbanView
-            activeBoardId={activeBoardId}
-            joinedData={localJoinedData} // ← use local now
-          />
-        </main>
+    <div className="flex h-screen w-full overflow-hidden flex-col">
+      {/* Top bar */}
+      <div className="flex items-center gap-3 px-4 h-14 border-b shrink-0 bg-card">
+        <Sidebar
+          username={username}
+          activeBoardId={activeBoardId}
+          setActiveBoardId={setActiveBoardId}
+          boards={boards}
+          onCreateBoard={handleCreateBoard}
+          onDeleteBoard={handleDeleteBoard}
+        />
+        <h1 className="text-xl font-bold tracking-tight truncate">
+          {activeBoardName ?? 'Select a board'}
+        </h1>
       </div>
-    </>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto p-6 bg-muted/30">
+        <KanbanView
+          activeBoardId={activeBoardId}
+          joinedData={localJoinedData}
+        />
+      </main>
+    </div>
   );
 }
