@@ -10,8 +10,9 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { Trash2, Plus, Menu } from 'lucide-react';
+import { Trash2, Plus, Menu, UserPen } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 interface Board {
   id: string;
@@ -28,6 +29,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar(props: SidebarProps) {
+  const router = useRouter();
   const {
     username,
     activeBoardId,
@@ -65,7 +67,7 @@ export default function Sidebar(props: SidebarProps) {
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 shrink-0"
+          className="h-9 w-9 shrink-0 cursor-pointer"
         >
           <Menu className="h-5 w-5" />
         </Button>
@@ -129,7 +131,7 @@ export default function Sidebar(props: SidebarProps) {
             <Button
               onClick={handleCreate}
               disabled={creating || !newBoardName.trim()}
-              className="w-full h-9"
+              className="w-full h-9 cursor-pointer"
             >
               {creating ? (
                 'Creating...'
@@ -139,6 +141,15 @@ export default function Sidebar(props: SidebarProps) {
                   Create Board
                 </>
               )}
+            </Button>
+            <hr />
+            <Button
+              variant="ghost"
+              className="w-full h-9 cursor-pointer"
+              onClick={() => router.push('/')}
+            >
+              <UserPen className="mr-2 h-4 w-4 " />
+              Change Username
             </Button>
           </div>
         </div>

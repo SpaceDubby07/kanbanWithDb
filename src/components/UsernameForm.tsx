@@ -69,7 +69,7 @@ export function UsernameForm() {
         </Label>
         <Input
           id="username"
-          placeholder="imagination-is-the-limit, project-x, kanban-2026"
+          placeholder="zach, project-z, kanban-2026, solo-dev"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoFocus
@@ -82,7 +82,7 @@ export function UsernameForm() {
       <Button
         type="submit"
         size="lg"
-        className="w-full text-base font-medium"
+        className="w-full text-base font-medium cursor-pointer"
         disabled={isLoading}
       >
         {isLoading ? 'Checking...' : 'Go to my boards →'}

@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import Sidebar from './Sidebar';
 import { KanbanView } from './KanbanView';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import { Button } from './ui/button';
+import Image from 'next/image';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from './ui/tooltip';
 
 type Board = {
   id: string;
@@ -157,9 +166,30 @@ export default function BoardLayoutClient({
           onCreateBoard={handleCreateBoard}
           onDeleteBoard={handleDeleteBoard}
         />
-        <h1 className="text-xl font-bold tracking-tight truncate">
+
+        <h1 className="text-xl font-bold tracking-tight truncate flex-1">
           {activeBoardName ?? 'Select a board'}
         </h1>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="https://ko-fi.com/spacedubby07"
+              target="_blank"
+            >
+              <Button className="p-4 cursor-pointer">
+                <Image
+                  src="/images/kofi.png"
+                  width={24}
+                  height={24}
+                  alt="donate via kofi"
+                />
+              </Button>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="left">
+            <p>Donate</p>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Main content */}

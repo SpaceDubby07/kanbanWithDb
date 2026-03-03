@@ -1069,7 +1069,7 @@ export function KanbanView({
                                 creatingTask[list.id] ||
                                 !newTaskContent[list.id]?.trim()
                               }
-                              className="w-full"
+                              className="w-full cursor-pointer"
                             >
                               {creatingTask[list.id]
                                 ? 'Adding...'
@@ -1100,7 +1100,7 @@ export function KanbanView({
                     <Button
                       onClick={handleAddList}
                       disabled={creatingList || !newListTitle.trim()}
-                      className="flex-1"
+                      className="flex-1 cursor-pointer"
                     >
                       {creatingList ? 'Adding...' : 'Add List'}
                     </Button>
@@ -1110,6 +1110,7 @@ export function KanbanView({
                         setShowNewListForm(false);
                         setNewListTitle('');
                       }}
+                      className="cursor-pointer"
                     >
                       Cancel
                     </Button>
