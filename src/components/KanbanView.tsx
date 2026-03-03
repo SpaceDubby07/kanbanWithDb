@@ -186,6 +186,14 @@ export function KanbanView({
     null,
   );
 
+  // hopefully fix brave delete issue
+  const [pendingDeleteTaskId, setPendingDeleteTaskId] = useState<
+    string | null
+  >(null);
+  const [pendingDeleteListId, setPendingDeleteListId] = useState<
+    string | null
+  >(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 8 },
@@ -545,7 +553,7 @@ export function KanbanView({
   };
 
   const handleDeleteTask = async (taskId: string, listId: string) => {
-    if (!confirm('Delete this task?')) return;
+    // removed confirm()
     try {
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: 'DELETE',
@@ -635,8 +643,6 @@ export function KanbanView({
     listId: string,
     listTitle: string,
   ) => {
-    if (!confirm(`Delete list "${listTitle}" and all its tasks?`))
-      return;
     try {
       const res = await fetch(`/api/lists/${listId}`, {
         method: 'DELETE',
@@ -787,17 +793,44 @@ export function KanbanView({
                       {tasks.length}
                     </span>
                     {!isProtectedList(list.title) && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() =>
-                          handleDeleteList(list.id, list.title)
-                        }
-                        title="Delete list"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {pendingDeleteListId === list.id ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground"
+                              onClick={() =>
+                                setPendingDeleteListId(null)
+                              }
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:bg-red-50"
+                              onClick={() => {
+                                handleDeleteList(list.id, list.title);
+                                setPendingDeleteListId(null);
+                              }}
+                            >
+                              <CheckCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() =>
+                              setPendingDeleteListId(list.id)
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -898,16 +931,42 @@ export function KanbanView({
                             </>
                           )}
 
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0" // h-8 w-8
-                            onClick={() =>
-                              handleDeleteTask(task.id, list.id)
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {pendingDeleteTaskId === task.id ? (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground"
+                                onClick={() =>
+                                  setPendingDeleteTaskId(null)
+                                }
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-red-600 hover:bg-red-50"
+                                onClick={() => {
+                                  handleDeleteTask(task.id, list.id);
+                                  setPendingDeleteTaskId(null);
+                                }}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
+                              onClick={() =>
+                                setPendingDeleteTaskId(task.id)
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     );
